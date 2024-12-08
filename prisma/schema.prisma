@@ -33,15 +33,16 @@ model Users {
 }
 
 model UserSettings {
-  settingId    Int      @id @default(autoincrement())
-  userId       Int      @unique
-  notifications Boolean  @default(true)
-  language     String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  settingId     Int      @id @default(autoincrement())
+  userId        Int      @unique
+  notifications Boolean  @default(true) // 默认通知打开
+  language      String   @default("English") // 默认语言为 English
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user Users @relation(fields: [userId], references: [userId])
 }
+
 
 model SavedCountries {
   savedCountryId Int      @id @default(autoincrement())
@@ -52,7 +53,7 @@ model SavedCountries {
   user           Users @relation(fields: [userId], references: [userId])
   country        CountryDetailsCard @relation(fields: [countryId], references: [countryId])
 
-  @@unique([userId, countryId]) // 确保同一用户不会重复保存同一国家
+  @@unique([userId, countryId]) 
 }
 
 model SavedQuizzes {
@@ -64,7 +65,7 @@ model SavedQuizzes {
   user        Users @relation(fields: [userId], references: [userId])
   question    QuizQuestionsCard @relation(fields: [questionId], references: [questionId])
 
-  @@unique([userId, questionId]) // 确保同一用户不会重复保存同一问题
+  @@unique([userId, questionId]) 
 }
 
 
@@ -73,10 +74,10 @@ model CountryDetailsCard {
   countryId      Int      @id @default(autoincrement())
   countryName    String   @unique
   flagURL        String
-  startOfWeek    String
   currencySymbol String
-  governmentType String
-  languages      String   // 用逗号分隔存储语言列表
+  region         String
+  capital        String
+  languages      String   
   additionalInfo String?
 
   savedCountries SavedCountries[]
@@ -87,7 +88,7 @@ model QuizQuestionsCard {
   questionId    Int       @id @default(autoincrement())
   countryId     Int
   questionText  String
-  options       Json      // 使用 JSON 类型存储选项数组
+  options       Json      
   correctAnswer String
 
   country       CountryDetailsCard @relation(fields: [countryId], references: [countryId])

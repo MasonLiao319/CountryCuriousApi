@@ -12,22 +12,22 @@ dotenv.config();
 
 const router = express.Router();
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret'; // JWT 密钥
-const TOKEN_EXPIRATION = '12h'; // Token 有效期
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret'; 
+const TOKEN_EXPIRATION = '12h'; 
 const uploadDir = 'public/images/';
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // 使用 Gmail 服务（根据你的邮件服务商调整）
+  service: 'gmail', 
   auth: {
-    user: process.env.EMAIL_USER, // 在 .env 文件中配置邮箱用户名
-    pass: process.env.EMAIL_PASS, // 在 .env 文件中配置邮箱密码或应用专用密码
+    user: process.env.EMAIL_USER, 
+    pass: process.env.EMAIL_PASS, 
   },
 });
 
-// 配置 multer 存储方式
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir); // 指定存储路径
+    cb(null, uploadDir); 
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -54,9 +54,7 @@ const upload = multer({
 });
 
 
-/**
- * 用户注册 (/signup)
- */
+
 router.post('/signup', async (req, res) => {
   try {
     const { email, password, firstName, lastName } = req.body;
@@ -65,19 +63,16 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // 检查用户是否已存在
     const existingUser = await prisma.users.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    // 哈希密码
     const hashedPassword = await hashPassword(password);
 
-    // 生成 6 位验证码
+   
     const verificationCode = crypto.randomInt(100000, 999999).toString();
 
-    // 创建用户并存储验证码
     await prisma.users.create({
       data: {
         email,
@@ -91,7 +86,6 @@ router.post('/signup', async (req, res) => {
       },
     });
 
-    // 发送验证邮件
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -115,9 +109,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-/**
- * 验证账号 (/verify)
- */
+
 router.post('/verify', async (req, res) => {
   try {
     const { code } = req.body;
@@ -126,7 +118,7 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ error: 'Verification code is required' });
     }
 
-    // 查询用户是否有该验证码
+    
     const user = await prisma.users.findFirst({
       where: {
         verificationCode: code,
@@ -138,16 +130,15 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired verification code' });
     }
 
-    // 检查验证码是否过期（有效期 15 分钟）
     const codeCreationTime = new Date(user.verificationCodeCreatedAt);
     const currentTime = new Date();
-    const timeDiff = (currentTime - codeCreationTime) / (1000 * 60); // 转换为分钟
+    const timeDiff = (currentTime - codeCreationTime) / (1000 * 60); 
 
     if (timeDiff > 15) {
       return res.status(400).json({ error: 'Verification code has expired' });
     }
 
-    // 激活用户并清除验证码
+    
     await prisma.users.update({
       where: { email: user.email },
       data: {
@@ -163,9 +154,8 @@ router.post('/verify', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-/**
- * 用户登录 (/login)
- */
+
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -195,9 +185,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-/**
- * 更新用户个人信息 (/userProfile/:userId)
- */
+
 router.put('/userProfile/:userId', async (req, res) => {
   const { userId } = req.params;
   const { nickName, region, age } = req.body;
@@ -226,9 +214,7 @@ router.put('/userProfile/:userId', async (req, res) => {
   }
 });
 
-/**
- * 用户上传头像 (/userProfile/:userId/avatar)
- */
+
 router.post('/userProfile/:userId/avatar', upload.single('avatar'), async (req, res) => {
   const { userId } = req.params;
 
@@ -253,9 +239,7 @@ router.post('/userProfile/:userId/avatar', upload.single('avatar'), async (req, 
   }
 });
 
-/**
- * 用户上传背景图片 (/userProfile/:userId/background)
- */
+
 router.post('/userProfile/:userId/background', upload.single('background'), async (req, res) => {
   const { userId } = req.params;
 

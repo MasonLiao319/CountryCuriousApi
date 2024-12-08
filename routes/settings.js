@@ -3,32 +3,28 @@ import { PrismaClient } from '@prisma/client';
 
 const router = express.Router();
 const prisma = new PrismaClient();
-const VALID_LANGUAGES = ['English', 'French']; // 有效语言选项
+const VALID_LANGUAGES = ['English', 'French']; 
 
-/**
- * 获取用户设置
- * 路径: GET /api/userSettings/:userId
- */
+
 router.get('/:userId', async (req, res) => {
-  const { userId } = req.params;
-
   try {
-    // 验证用户是否存在
-    const user = await prisma.users.findUnique({
-      where: { userId: parseInt(userId, 10) },
-    });
+    const userId =
+      process.env.NODE_ENV === 'development' ? 5 : parseInt(req.params.userId, 10);
 
-    if (!user) {
-      return res.status(404).json({ errorMessage: 'User not found' });
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // 获取用户设置
-    const settings = await prisma.userSettings.findUnique({
-      where: { userId: parseInt(userId, 10) },
+    let settings = await prisma.userSettings.findUnique({
+      where: { userId },
     });
 
     if (!settings) {
-      return res.status(404).json({ errorMessage: 'Settings not found' });
+      settings = await prisma.userSettings.create({
+        data: {
+          userId,
+        }, 
+      });
     }
 
     res.status(200).json({
@@ -41,86 +37,94 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
-/**
- * 更新用户设置
- * 路径: PUT /api/userSettings/:userId
- * Body: { notifications, language }
- */
-router.put('/:userId', async (req, res) => {
-  const { userId } = req.params;
-  const { notifications, language } = req.body;
 
+router.put('/:userId/notifications', async (req, res) => {
   try {
-    // 验证用户是否存在
-    const user = await prisma.users.findUnique({
-      where: { userId: parseInt(userId, 10) },
-    });
+    const userId =
+      process.env.NODE_ENV === 'development' ? 5 : parseInt(req.params.userId, 10);
 
-    if (!user) {
-      return res.status(404).json({ errorMessage: 'User not found' });
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // 验证语言选项是否合法
-    if (language && !VALID_LANGUAGES.includes(language)) {
-      return res.status(400).json({
-        errorMessage: `Invalid language option. Valid options are: ${VALID_LANGUAGES.join(', ')}`,
-      });
+    const { notifications } = req.body;
+
+    if (typeof notifications !== 'boolean') {
+      return res.status(400).json({ error: 'Notifications value must be a boolean' });
     }
 
-    // 更新用户设置
     const updatedSettings = await prisma.userSettings.update({
-      where: { userId: parseInt(userId, 10) },
-      data: {
-        notifications: notifications ?? undefined, // 保持当前值如果未提供
-        language: language ?? undefined,           // 保持当前值如果未提供
-      },
+      where: { userId },
+      data: { notifications },
     });
 
     res.status(200).json({
-      message: 'Settings updated successfully',
-      updatedSettings: {
-        notifications: updatedSettings.notifications,
-        language: updatedSettings.language,
-      },
+      message: 'Notifications updated successfully',
+      notifications: updatedSettings.notifications,
     });
   } catch (error) {
-    console.error('Error updating user settings:', error.message);
+    console.error('Error updating notifications:', error.message);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
-/**
- * 重置用户设置为默认值
- * 路径: DELETE /api/userSettings/:userId
- */
-router.delete('/:userId', async (req, res) => {
-  const { userId } = req.params;
 
+router.put('/:userId/language', async (req, res) => {
   try {
-    // 验证用户是否存在
-    const user = await prisma.users.findUnique({
-      where: { userId: parseInt(userId, 10) },
-    });
+    const userId =
+      process.env.NODE_ENV === 'development' ? 5 : parseInt(req.params.userId, 10);
 
-    if (!user) {
-      return res.status(404).json({ errorMessage: 'User not found' });
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // 重置用户设置为默认值
+    const { language } = req.body;
+
+    if (!VALID_LANGUAGES.includes(language)) {
+      return res.status(400).json({
+        error: `Invalid language option. Valid options are: ${VALID_LANGUAGES.join(', ')}`,
+      });
+    }
+
+    
+    const updatedSettings = await prisma.userSettings.update({
+      where: { userId },
+      data: { language },
+    });
+
+    res.status(200).json({
+      message: 'Language updated successfully',
+      language: updatedSettings.language,
+    });
+  } catch (error) {
+    console.error('Error updating language:', error.message);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+
+router.delete('/:userId', async (req, res) => {
+  try {
+    const userId =
+      process.env.NODE_ENV === 'development' ? 5 : parseInt(req.params.userId, 10);
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+   
     const resetSettings = await prisma.userSettings.update({
-      where: { userId: parseInt(userId, 10) },
+      where: { userId },
       data: {
-        notifications: true, // 默认值
-        language: 'English', // 默认值
+        notifications: true, 
+        language: 'English', 
       },
     });
 
     res.status(200).json({
       message: 'Settings reset to default values',
-      resetSettings: {
-        notifications: resetSettings.notifications,
-        language: resetSettings.language,
-      },
+      notifications: resetSettings.notifications,
+      language: resetSettings.language,
     });
   } catch (error) {
     console.error('Error resetting user settings:', error.message);
