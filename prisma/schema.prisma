@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  userId       Int       @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  email        String    @unique
+  passwordHash String
+  nickName     String?
+  region       String?
+  age          Int?
+  avatarURL    String?
+  backgroundURL String?
+  isActive                 Boolean   @default(false) // 是否激活
+  verificationCode         String?   // 验证码
+  verificationCodeCreatedAt DateTime? // 验证码生成时间
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  userSettings UserSettings?
+  savedCountries SavedCountries[]
+  savedQuizzes SavedQuizzes[]
+}
+
+model UserSettings {
+  settingId    Int      @id @default(autoincrement())
+  userId       Int      @unique
+  notifications Boolean  @default(true)
+  language     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user Users @relation(fields: [userId], references: [userId])
+}
+
+model SavedCountries {
+  savedCountryId Int      @id @default(autoincrement())
+  userId         Int
+  countryId      Int
+  savedAt        DateTime @default(now())
+
+  user           Users @relation(fields: [userId], references: [userId])
+  country        CountryDetailsCard @relation(fields: [countryId], references: [countryId])
+
+  @@unique([userId, countryId]) // 确保同一用户不会重复保存同一国家
+}
+
+model SavedQuizzes {
+  savedQuizId Int      @id @default(autoincrement())
+  userId      Int
+  questionId  Int
+  savedAt     DateTime @default(now())
+
+  user        Users @relation(fields: [userId], references: [userId])
+  question    QuizQuestionsCard @relation(fields: [questionId], references: [questionId])
+
+  @@unique([userId, questionId]) // 确保同一用户不会重复保存同一问题
+}
+
+
+
+model CountryDetailsCard {
+  countryId      Int      @id @default(autoincrement())
+  countryName    String   @unique
+  flagURL        String
+  startOfWeek    String
+  currencySymbol String
+  governmentType String
+  languages      String   // 用逗号分隔存储语言列表
+  additionalInfo String?
+
+  savedCountries SavedCountries[]
+  quizQuestions  QuizQuestionsCard[]
+}
+
+model QuizQuestionsCard {
+  questionId    Int       @id @default(autoincrement())
+  countryId     Int
+  questionText  String
+  options       Json      // 使用 JSON 类型存储选项数组
+  correctAnswer String
+
+  country       CountryDetailsCard @relation(fields: [countryId], references: [countryId])
+  savedQuizzes  SavedQuizzes[]
+}
+
+
+
+model VerificationCodes {
+  email     String   @id
+  code      String
+  createdAt DateTime @default(now())
+}
