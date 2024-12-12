@@ -1,8 +1,8 @@
 import express from 'express';
-import morgan from 'morgan'; // 请求日志
-import cors from 'cors'; // 跨域支持
-import dotenv from 'dotenv'; // 环境变量
-import redisClient from './lib/redisClient.js'; // Redis 客户端
+import morgan from 'morgan'; 
+import cors from 'cors'; 
+import dotenv from 'dotenv'; 
+import redisClient from './lib/redisClient.js'; 
 import usersRouter from './routes/users.js';
 import settingsRouter from './routes/settings.js';
 import countriesRouter from './routes/countries.js';
@@ -10,7 +10,7 @@ import savedCountriesRouter from './routes/savedCountries.js';
 import quizQuestionsRouter from './routes/quizQuestions.js';
 import savedQuizzesRouter from './routes/savedQuizzes.js';
 import testRouter from './routes/test.js';
-dotenv.config(); // 加载环境变量
+dotenv.config(); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,21 +25,20 @@ const isProduction = process.env.NODE_ENV === 'production';
     }
   } catch (err) {
     console.error('Failed to connect to Redis:', err.message);
-    process.exit(1); // 如果 Redis 连接失败，直接退出
+    process.exit(1); 
   }
 })();
 
 // **Middleware Configuration**
-app.use(express.json()); // 解析 JSON 请求体
-app.use(express.urlencoded({ extended: true })); // 解析 URL 编码的请求体
-app.use(express.static('public')); // 服务静态文件
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true })); 
+app.use(express.static('public')); 
 
-// 日志记录（仅在开发环境启用详细日志）
 if (!isProduction) {
   app.use(morgan('dev'));
 }
 
-// CORS 配置
+// CORS 
 app.use(
   cors({
     origin: isProduction ? 'https://your-production-site.com' : 'http://localhost:3000',

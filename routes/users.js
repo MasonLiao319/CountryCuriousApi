@@ -13,9 +13,10 @@ dotenv.config();
 const router = express.Router();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret'; 
-const TOKEN_EXPIRATION = '12h'; 
+const TOKEN_EXPIRATION = '12h'; // Token validity period
 const uploadDir = 'public/images/';
 
+// Configure email transporter for sending emails
 const transporter = nodemailer.createTransport({
   service: 'gmail', 
   auth: {
@@ -24,35 +25,34 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-
+// Configure Multer for handling file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir); 
+    cb(null, uploadDir); // Save files to the specified directory
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);// Generate unique filename
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   },
 });
 
 
 
-// 设置 multer 中间件
+// Multer middleware setup for image uploads
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 限制文件大小为 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
     const fileTypes = /jpeg|jpg|png/;
-    const extName = fileTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimeType = fileTypes.test(file.mimetype);
+    const extName = fileTypes.test(path.extname(file.originalname).toLowerCase());// Check file extension
+    const mimeType = fileTypes.test(file.mimetype);// Check MIME type
     if (extName && mimeType) {
-      cb(null, true);
+      cb(null, true);// Accept the file
     } else {
       cb(new Error('Only images (jpeg, jpg, png) are allowed'));
     }
   },
 });
-
 
 
 router.post('/signup', async (req, res) => {
@@ -110,6 +110,8 @@ router.post('/signup', async (req, res) => {
 });
 
 
+
+// Route: Verify user account
 router.post('/verify', async (req, res) => {
   try {
     const { code } = req.body;
@@ -118,7 +120,7 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ error: 'Verification code is required' });
     }
 
-    
+    // Find inactive user with the given code
     const user = await prisma.users.findFirst({
       where: {
         verificationCode: code,
@@ -130,6 +132,7 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired verification code' });
     }
 
+    // Check if the code has expired (valid for 15 minutes)
     const codeCreationTime = new Date(user.verificationCodeCreatedAt);
     const currentTime = new Date();
     const timeDiff = (currentTime - codeCreationTime) / (1000 * 60); 
@@ -138,7 +141,7 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ error: 'Verification code has expired' });
     }
 
-    
+    // Activate user account
     await prisma.users.update({
       where: { email: user.email },
       data: {
@@ -155,7 +158,7 @@ router.post('/verify', async (req, res) => {
   }
 });
 
-
+// Route: User login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -164,16 +167,19 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Find user by email
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Validate password
     const isPasswordValid = await comparePassword(password, user.passwordHash);
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid password' });
     }
 
+    // Generate a JWT for the user
     const token = jwt.sign({ userId: user.userId, email: user.email }, JWT_SECRET, {
       expiresIn: TOKEN_EXPIRATION,
     });

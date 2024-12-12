@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 
 async function fetchCountries() {
   try {
+    // Attempt to fetch countries from Redis cache
     let countries = await redisClient.get('countriesList');
     if (!countries) {
       console.log('Redis cache miss. Fetching countries from API...');
@@ -16,13 +17,13 @@ async function fetchCountries() {
         'https://restcountries.com/v3.1/all?fields=name,flags,currencies,region,capital,languages',
         {
           headers: {
-            Accept: 'application/json',
+            Accept: 'application/json',// Ensure the response is in JSON format
             'Accept-Encoding': 'gzip,deflate,compress',
           },
           timeout: 60000,
         }
       );
-
+    // Process the response data to extract required fields
       countries = response.data.slice(0, 30).map((country) => ({
         countryName: country.name?.common || 'unknown',
         flagURL: country.flags?.svg || country.flags?.png || '',
@@ -36,20 +37,21 @@ async function fetchCountries() {
           : 'unknown',
       }));
 
+      // Cache the processed countries data in Redis with 10-minute expiration
       await redisClient.set('countriesList', JSON.stringify(countries), { EX: 600 });
       console.log('Successfully cached countries data to Redis');
     } else {
       countries = JSON.parse(countries);
     }
 
-    return countries;
+    return countries;// Return the countries list
   } catch (error) {
     console.error('Error fetching countries:', error.message);
     throw error;
   }
 }
 
-
+// Route: /random - Fetch a random country and generate a quiz question
 router.get('/random', async (req, res) => {
   try {
     const userId = 5; 
@@ -61,7 +63,7 @@ router.get('/random', async (req, res) => {
       return res.status(404).json({ error: 'No countries available' });
     }
 
-    
+    // Select a random country from the list
     const randomCountry = countries[Math.floor(Math.random() * countries.length)];
     console.log(`Random country selected for userId ${userId}:`, randomCountry);
 
@@ -87,7 +89,7 @@ router.get('/random', async (req, res) => {
    
     const countryId = country.countryId;
 
-    
+    // Check if a quiz question exists for the country
     let question = await prisma.quizQuestionsCard.findFirst({
       where: {
         countryId: countryId, 
@@ -95,7 +97,7 @@ router.get('/random', async (req, res) => {
       },
     });
 
-
+      // If no question exists, create a new one
     if (!question) {
       const newQuestion = {
         questionText: `What is the currency symbol of ${country.countryName}?`,
@@ -114,18 +116,21 @@ router.get('/random', async (req, res) => {
       console.log('Quiz question created:', question);
     }
 
-    
+    // Fetch user quiz history from Redis
     const userHistoryKey = `user:${userId}:quizHistory`;
     let userHistory = await redisClient.get(userHistoryKey);
     userHistory = userHistory ? JSON.parse(userHistory) : [];
+    // Add the current country to the user's quiz history
     userHistory.push(country.countryName);
-
+    // Maintain a maximum history length of 10
     if (userHistory.length > 10) {
-      userHistory.shift();
+      userHistory.shift();// Remove the oldest entry
     }
 
+    // Save the updated history back to Redis with a 1-hour expiration
     await redisClient.set(userHistoryKey, JSON.stringify(userHistory), { EX: 3600 });
 
+    // Respond with the quiz question
     res.status(200).json({
       question: {
         questionText: question.questionText,

@@ -5,6 +5,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 
+// GET route to fetch saved quizzes for a specific user
 router.get('/:userId', async (req, res) => {
   try {
     
@@ -15,6 +16,7 @@ router.get('/:userId', async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
+    // Fetch saved quizzes for the user, including related question data
     const savedQuizzes = await prisma.savedQuizzes.findMany({
       where: { userId },
       include: {
@@ -22,11 +24,13 @@ router.get('/:userId', async (req, res) => {
       },
     });
 
+
+    // If no saved quizzes are found, return a not found error
     if (!savedQuizzes || savedQuizzes.length === 0) {
       return res.status(404).json({ error: 'No saved quizzes found' });
     }
 
-   
+    // Format the saved quizzes to include relevant information about the questions
     const quizzes = savedQuizzes.map((quiz) => ({
       savedQuizId: quiz.savedQuizId,
       questionId: quiz.questionId,
@@ -42,7 +46,7 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
-
+// POST route to save a quiz question for a user
 router.post('/save', async (req, res) => {
   try {
     const userId = 5; 
@@ -52,6 +56,7 @@ router.post('/save', async (req, res) => {
       return res.status(400).json({ error: 'Question ID is required' });
     }
 
+    // Fetch the question details from the database using questionId
     const question = await prisma.quizQuestionsCard.findUnique({
       where: { questionId: parseInt(questionId, 10) },
     });
@@ -61,6 +66,8 @@ router.post('/save', async (req, res) => {
     }
 
 
+
+    // Check if the question has already been saved by the user
     const existingSave = await prisma.savedQuizzes.findUnique({
       where: {
         userId_questionId: {
@@ -74,6 +81,8 @@ router.post('/save', async (req, res) => {
       return res.status(409).json({ error: 'Quiz question already saved' });
     }
 
+
+    // Save the quiz question to the database
     const savedQuiz = await prisma.savedQuizzes.create({
       data: {
         userId,
@@ -92,6 +101,7 @@ router.post('/save', async (req, res) => {
 });
 
 
+// DELETE route to remove a saved quiz question for a user
 router.delete('/delete', async (req, res) => {
   try {
     const userId = 5; 
@@ -102,6 +112,7 @@ router.delete('/delete', async (req, res) => {
     }
 
     
+    // Check if the quiz question is already saved by the user
     const savedQuiz = await prisma.savedQuizzes.findUnique({
       where: {
         userId_questionId: {
@@ -115,6 +126,7 @@ router.delete('/delete', async (req, res) => {
       return res.status(404).json({ error: 'Saved quiz not found' });
     }
 
+    // Delete the saved quiz question from the database
     await prisma.savedQuizzes.delete({
       where: {
         userId_questionId: {
